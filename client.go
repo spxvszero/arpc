@@ -766,6 +766,7 @@ func (c *Client) recvLoop() {
 
 					break
 				}
+				c.Handler.OnReconnecting(c, i)
 
 				time.Sleep(time.Second)
 			}

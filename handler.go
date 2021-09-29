@@ -50,6 +50,11 @@ type Handler interface {
 	// OnDisconnected will be called when client is disconnected.
 	OnDisconnected(c *Client)
 
+	// HandleReconnecting registers handler which will be called when client is reconnecting.
+	HandleReconnecting(onReconnecting func(*Client, int))
+	// OnReconnecting will be called when client is reconnecting.
+	OnReconnecting(c *Client, retryTimes int)
+
 	// HandleOverstock registers handler which will be called when client send queue is overstock.
 	HandleOverstock(onOverstock func(c *Client, m *Message))
 	// OnOverstock will be called when client chSend is full.
@@ -199,6 +204,7 @@ type handler struct {
 
 	onConnected      func(*Client)
 	onDisConnected   func(*Client)
+	onReconnecting 	 func(*Client, int)
 	onOverstock      func(c *Client, m *Message)
 	onMessageDone    func(c *Client, m *Message)
 	onMessageDropped func(c *Client, m *Message)
@@ -291,6 +297,25 @@ func (h *handler) HandleDisconnected(onDisConnected func(*Client)) {
 func (h *handler) OnDisconnected(c *Client) {
 	if h.onDisConnected != nil {
 		h.onDisConnected(c)
+	}
+}
+
+func (h *handler) HandleReconnecting(onReconnecting func(*Client, int)) {
+	if onReconnecting == nil {
+		return
+	}
+	pre := h.onReconnecting
+	h.onReconnecting = func(c *Client, retryTimes int) {
+		if pre != nil {
+			pre(c, retryTimes)
+		}
+		onReconnecting(c,retryTimes)
+	}
+}
+
+func (h *handler) OnReconnecting(c *Client, retryTimes int) {
+	if h.onReconnecting != nil {
+		h.onReconnecting(c, retryTimes)
 	}
 }
 
@@ -762,6 +787,11 @@ func HandleConnected(onConnected func(*Client)) {
 // HandleDisconnected registers default handler which will be called when client disconnected.
 func HandleDisconnected(onDisConnected func(*Client)) {
 	DefaultHandler.HandleDisconnected(onDisConnected)
+}
+
+// HandleReconnecting registers default handler which will be called when client reconnecting.
+func HandleReconnecting(onReconnecting func(*Client, int)) {
+	DefaultHandler.HandleReconnecting(onReconnecting)
 }
 
 // HandleOverstock registers default handler which will be called when client send queue is overstock.
